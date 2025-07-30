@@ -1,4 +1,35 @@
-<!-- Cards Overview -->
+@extends('layouts.app')
+
+@section('title', 'Mes Cartes - FlowFinance')
+
+@section('content')
+<div class="cards-page">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <div class="header-info">
+                    <h1>Mes Cartes</h1>
+                    <p>Gérez vos cartes bancaires et suivez vos dépenses</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/>
+                        </svg>
+                        Filtrer
+                    </button>
+                    <button class="btn btn-primary" onclick="showAddCardModal()">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                        </svg>
+                        Ajouter une carte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Overview -->
         <div class="cards-overview">
             <div class="overview-stats">
                 <div class="stat-item">
@@ -36,7 +67,7 @@
                 <div class="card-details">
                     <div class="card-holder">
                         <div class="label">Titulaire</div>
-                        <div class="value">ROBERT MARTIN</div>
+                        <div class="value">{{ strtoupper(auth()->user()->name ?? 'ROBERT MARTIN') }}</div>
                     </div>
                     <div class="card-expiry">
                         <div class="label">Expire</div>
@@ -67,7 +98,7 @@
                 <div class="card-details">
                     <div class="card-holder">
                         <div class="label">Titulaire</div>
-                        <div class="value">ROBERT MARTIN</div>
+                        <div class="value">{{ strtoupper(auth()->user()->name ?? 'ROBERT MARTIN') }}</div>
                     </div>
                     <div class="card-expiry">
                         <div class="label">Expire</div>
@@ -98,7 +129,7 @@
                 <div class="card-details">
                     <div class="card-holder">
                         <div class="label">Titulaire</div>
-                        <div class="value">ROBERT MARTIN</div>
+                        <div class="value">{{ strtoupper(auth()->user()->name ?? 'ROBERT MARTIN') }}</div>
                     </div>
                     <div class="card-expiry">
                         <div class="label">Expire</div>
@@ -251,7 +282,7 @@
                 </div>
                 <div class="form-group">
                     <label for="cardName">Nom sur la carte</label>
-                    <input type="text" id="cardName" placeholder="ROBERT MARTIN">
+                    <input type="text" id="cardName" placeholder="{{ strtoupper(auth()->user()->name ?? 'ROBERT MARTIN') }}">
                 </div>
                 <div class="form-group">
                     <label for="cardAlias">Nom personnalisé (optionnel)</label>
@@ -265,12 +296,13 @@
         </div>
     </div>
 </div>
+@endsection
 
 @push('styles')
 <style>
     .cards-page {
         padding: 2rem 0;
-        background: #f8fafc;
+        background: #6b7280;
     }
 
     .page-header {
@@ -800,175 +832,156 @@
 @push('scripts')
 <script>
     // Card number formatting
-    document.getElementById('cardNumber').addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\s/g, '');
-        let formattedValue = value.replace(/(.{4})/g, '$1 ').trim();
-        if (formattedValue.length > 19) {
-            formattedValue = formattedValue.substr(0, 19);
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardNumberInput = document.getElementById('cardNumber');
+        if (cardNumberInput) {
+            cardNumberInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\s/g, '');
+                let formattedValue = value.replace(/(.{4})/g, '$1 ').trim();
+                if (formattedValue.length > 19) {
+                    formattedValue = formattedValue.substr(0, 19);
+                }
+                e.target.value = formattedValue;
+            });
         }
-        e.target.value = formattedValue;
-    });
 
-    // Expiry date formatting
-    document.getElementById('expiryDate').addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length >= 2) {
-            value = value.substr(0, 2) + '/' + value.substr(2, 2);
+        // Expiry date formatting
+        const expiryDateInput = document.getElementById('expiryDate');
+        if (expiryDateInput) {
+            expiryDateInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length >= 2) {
+                    value = value.substr(0, 2) + '/' + value.substr(2, 2);
+                }
+                e.target.value = value;
+            });
         }
-        e.target.value = value;
-    });
 
-    // CVV numeric only
-    document.getElementById('cvv').addEventListener('input', function(e) {
-        e.target.value = e.target.value.replace(/\D/g, '');
+        // CVV numeric only
+        const cvvInput = document.getElementById('cvv');
+        if (cvvInput) {
+            cvvInput.addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+        }
     });
 
     // Modal functions
     function showAddCardModal() {
-        document.getElementById('addCardModal').classList.add('show');
-        document.body.style.overflow = 'hidden';
+        const modal = document.getElementById('addCardModal');
+        if (modal) {
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     function hideAddCardModal() {
-        document.getElementById('addCardModal').classList.remove('show');
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('addCardModal');
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
     }
 
     // Close modal on outside click
-    document.getElementById('addCardModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            hideAddCardModal();
-        }
-    });
-
-    // Form submission
-    document.querySelector('.add-card-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Get form data
-        const cardNumber = document.getElementById('cardNumber').value;
-        const expiryDate = document.getElementById('expiryDate').value;
-        const cvv = document.getElementById('cvv').value;
-        const cardName = document.getElementById('cardName').value;
-        const cardAlias = document.getElementById('cardAlias').value;
-
-        // Basic validation
-        if (!cardNumber || !expiryDate || !cvv || !cardName) {
-            alert('Veuillez remplir tous les champs obligatoires');
-            return;
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('addCardModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideAddCardModal();
+                }
+            });
         }
 
-        // Here you would normally send the data to your backend
-        console.log('Adding card:', {
-            cardNumber,
-            expiryDate,
-            cvv,
-            cardName,
-            cardAlias
-        });
+        // Form submission
+        const form = document.querySelector('.add-card-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Get form data
+                const cardNumber = document.getElementById('cardNumber').value;
+                const expiryDate = document.getElementById('expiryDate').value;
+                const cvv = document.getElementById('cvv').value;
+                const cardName = document.getElementById('cardName').value;
+                const cardAlias = document.getElementById('cardAlias').value;
 
-        // Show success message and close modal
-        alert('Carte ajoutée avec succès !');
-        hideAddCardModal();
-        
-        // Reset form
-        this.reset();
-    });
-
-    // Card filter functionality
-    document.querySelector('.card-select').addEventListener('change', function(e) {
-        const selectedCard = e.target.value;
-        const cardGroups = document.querySelectorAll('.card-transaction-group');
-        
-        cardGroups.forEach(group => {
-            if (selectedCard === 'all') {
-                group.style.display = 'block';
-            } else {
-                const cardType = group.querySelector('.card-mini').textContent.toLowerCase();
-                if (selectedCard.includes(cardType) || selectedCard === 'all') {
-                    group.style.display = 'block';
-                } else {
-                    group.style.display = 'none';
+                // Basic validation
+                if (!cardNumber || !expiryDate || !cvv || !cardName) {
+                    alert('Veuillez remplir tous les champs obligatoires');
+                    return;
                 }
-            }
-        });
-    });
 
-    // Card hover effects
-    document.querySelectorAll('.credit-card').forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-8px) rotateY(5deg)';
+                // Here you would normally send the data to your backend
+                console.log('Adding card:', {
+                    cardNumber,
+                    expiryDate,
+                    cvv,
+                    cardName,
+                    cardAlias
+                });
+
+                // Show success message and close modal
+                alert('Carte ajoutée avec succès !');
+                hideAddCardModal();
+                
+                // Reset form
+                this.reset();
+            });
+        }
+
+        // Card filter functionality
+        const cardSelect = document.querySelector('.card-select');
+        if (cardSelect) {
+            cardSelect.addEventListener('change', function(e) {
+                const selectedCard = e.target.value;
+                const cardGroups = document.querySelectorAll('.card-transaction-group');
+                
+                cardGroups.forEach(group => {
+                    if (selectedCard === 'all') {
+                        group.style.display = 'block';
+                    } else {
+                        const cardType = group.querySelector('.card-mini').textContent.toLowerCase();
+                        if (selectedCard.includes(cardType) || selectedCard === 'all') {
+                            group.style.display = 'block';
+                        } else {
+                            group.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
+        // Card hover effects
+        document.querySelectorAll('.credit-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) rotateY(5deg)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) rotateY(0deg)';
+            });
         });
 
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) rotateY(0deg)';
-        });
-    });
-
-    // Card action buttons
-    document.querySelectorAll('.card-action-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const action = this.textContent.trim();
-            const cardNumber = this.closest('.credit-card').querySelector('.card-number').textContent;
-            
-            if (action === 'Voir détails') {
-                console.log('Viewing details for card:', cardNumber);
-                // Implement card details modal
-            } else if (action === 'Bloquer') {
-                if (confirm('Êtes-vous sûr de vouloir bloquer cette carte ?')) {
-                    console.log('Blocking card:', cardNumber);
-                    // Implement card blocking functionality
+        // Card action buttons
+        document.querySelectorAll('.card-action-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.textContent.trim();
+                const cardNumber = this.closest('.credit-card').querySelector('.card-number').textContent;
+                
+                if (action === 'Voir détails') {
+                    console.log('Viewing details for card:', cardNumber);
+                    alert('Fonctionnalité "Voir détails" à venir !');
+                } else if (action === 'Bloquer') {
+                    if (confirm('Êtes-vous sûr de vouloir bloquer cette carte ?')) {
+                        console.log('Blocking card:', cardNumber);
+                        alert('Carte bloquée avec succès !');
+                    }
                 }
-            }
+            });
         });
     });
 </script>
 @endpush
-@endsection@extends('layouts.app')
-
-@section('title', 'Mes Cartes - FlowFinance')
-
-@section('content')
-<div class="cards-page">
-    <div class="container">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="header-content">
-                <div class="header-info">
-                    <h1>Mes Cartes</h1>
-                    <p>Gérez vos cartes bancaires et suivez vos dépenses</p>
-                </div>
-                <div class="header-actions">
-                    <button class="btn btn-secondary">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/>
-                        </svg>
-                        Filtrer
-                    </button>
-                    <button class="btn btn-primary" onclick="showAddCardModal()">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                        </svg>
-                        Ajouter une carte
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Cards Overview -->
-        <div class="cards-overview">
-            <div class="overview-stats">
-                <div class="stat-item">
-                    <div class="stat-label">Total des cartes</div>
-                    <div class="stat-value">3</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Dépenses ce mois</div>
-                    <div class="stat-value">€2,185.50</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Limite disponible</div>
-                    <div class="stat-value">€8,450.00</div>
-                </div>
-            </div>
