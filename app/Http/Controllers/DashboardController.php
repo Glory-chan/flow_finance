@@ -1,178 +1,181 @@
 <?php
-// app/Http/Controllers/DashboardController.php
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 use App\Models\Transaction;
 use App\Models\Budget;
-use App\Models\SavingsGoal;
-use App\Models\Category;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Goal;
+use App\Models\Card;
 
 class DashboardController extends Controller
 {
-    public function __construct()
+    /**
+     * Display the dashboard.
+     */
+    public function index(): View
     {
-        $this->middleware('auth');
-    }
-
-    public function index()
-    {
-        $user = Auth::user();
+        $user = auth()->user();
         
-        // Statistiques du mois en cours
-        $currentMonth = now()->format('m');
-        $currentYear = now()->format('Y');
+        // Données pour les statistiques principales
+        $totalBalance = $this->calculateTotalBalance($user);
+        $monthlyIncome = $this->getMonthlyIncome($user);
+        $monthlyExpenses = $this->getMonthlyExpenses($user);
+        $monthlySavings = $monthlyIncome - $monthlyExpenses;
         
-        $monthlyIncome = $user->getMonthlyIncome($currentMonth, $currentYear);
-        $monthlyExpenses = $user->getMonthlyExpenses($currentMonth, $currentYear);
-        $monthlyBalance = $monthlyIncome - $monthlyExpenses;
-        
-        // Transactions récentes (7 derniers jours)
-        $recentTransactions = $user->transactions()
-            ->with(['category', 'bankAccount'])
-            ->orderBy('transaction_date', 'desc')
+        // Transactions récentes
+        $recentTransactions = Transaction::where('user_id', $user->id)
+            ->with('category')
             ->orderBy('created_at', 'desc')
-            ->take(10)
+            ->limit(5)
             ->get();
         
-        // Budgets actifs du mois
-        $activeBudgets = $user->budgets()
-            ->with('category')
-            ->active()
-            ->current()
+        // Budget du mois en cours
+        $budgetOverview = $this->getBudgetOverviewData($user);
+        
+        // Objectifs d'épargne
+        $savingsGoals = Goal::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->orderBy('target_date', 'asc')
+            ->limit(3)
             ->get();
-        
-        // Mettre à jour les montants dépensés des budgets
-        foreach ($activeBudgets as $budget) {
-            $budget->updateSpentAmount();
-        }
-        
-        // Objectifs d'épargne actifs
-        $savingsGoals = $user->savingsGoals()
-            ->inProgress()
-            ->orderBy('target_date')
-            ->take(5)
-            ->get();
-        
-        // Dépenses par catégorie ce mois
-        $expensesByCategory = $user->transactions()
-            ->with('category')
-            ->where('type', 'expense')
-            ->thisMonth()
-            ->selectRaw('category_id, SUM(amount) as total')
-            ->groupBy('category_id')
-            ->get();
-        
-        // Comptes bancaires
-        $bankAccounts = $user->bankAccounts()->active()->get();
-        
-        // Alertes
-        $alerts = $this->getAlerts($user);
         
         return view('dashboard', compact(
-            'user',
+            'totalBalance',
             'monthlyIncome',
             'monthlyExpenses',
-            'monthlyBalance',
+            'monthlySavings',
             'recentTransactions',
-            'activeBudgets',
-            'savingsGoals',
-            'expensesByCategory',
-            'bankAccounts',
-            'alerts'
+            'budgetOverview',
+            'savingsGoals'
         ));
     }
     
-    private function getAlerts($user)
+    /**
+     * Get dashboard stats via API.
+     */
+    public function getStats(Request $request)
     {
-        $alerts = [];
+        $user = auth()->user();
         
-        // Alertes budgets dépassés
-        $overBudgets = $user->budgets()
-            ->active()
-            ->current()
-            ->get()
-            ->filter(function ($budget) {
-                $budget->updateSpentAmount();
-                return $budget->shouldAlert();
-            });
-        
-        foreach ($overBudgets as $budget) {
-            $alerts[] = [
-                'type' => $budget->isOverBudget() ? 'danger' : 'warning',
-                'message' => $budget->isOverBudget() 
-                    ? "Budget '{$budget->name}' dépassé de " . number_format($budget->spent - $budget->amount, 2) . "€"
-                    : "Attention: Budget '{$budget->name}' à " . round($budget->getProgressPercentage()) . "%",
-                'icon' => 'fas fa-exclamation-triangle'
-            ];
-        }
-        
-        // Alertes objectifs d'épargne en retard
-        $overdueGoals = $user->savingsGoals()
-            ->inProgress()
-            ->get()
-            ->filter(function ($goal) {
-                return $goal->isOverdue();
-            });
-        
-        foreach ($overdueGoals as $goal) {
-            $alerts[] = [
-                'type' => 'warning',
-                'message' => "Objectif d'épargne '{$goal->name}' en retard",
-                'icon' => 'fas fa-clock'
-            ];
-        }
-        
-        return $alerts;
+        return response()->json([
+            'total_balance' => $this->calculateTotalBalance($user),
+            'monthly_income' => $this->getMonthlyIncome($user),
+            'monthly_expenses' => $this->getMonthlyExpenses($user),
+            'monthly_savings' => $this->getMonthlyIncome($user) - $this->getMonthlyExpenses($user),
+            'cards_count' => Card::where('user_id', $user->id)->count(),
+            'goals_count' => Goal::where('user_id', $user->id)->where('status', 'active')->count(),
+        ]);
     }
     
-    public function getChartData(Request $request)
+    /**
+     * Get recent transactions via API.
+     */
+    public function getRecentTransactions(Request $request)
     {
-        $user = Auth::user();
-        $period = $request->get('period', 'month'); // month, year
+        $limit = $request->get('limit', 10);
         
-        if ($period === 'year') {
-            // Données par mois pour l'année en cours
-            $data = [];
-            for ($i = 1; $i <= 12; $i++) {
-                $income = $user->getMonthlyIncome($i, date('Y'));
-                $expenses = $user->getMonthlyExpenses($i, date('Y'));
-                
-                $data[] = [
-                    'period' => date('M', mktime(0, 0, 0, $i, 1)),
-                    'income' => $income,
-                    'expenses' => $expenses,
-                    'balance' => $income - $expenses
-                ];
+        $transactions = Transaction::where('user_id', auth()->id())
+            ->with(['category', 'card'])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+        
+        return response()->json($transactions);
+    }
+    
+    /**
+     * Get budget overview via API.
+     */
+    public function getBudgetOverview(Request $request)
+    {
+        $user = auth()->user();
+        return response()->json($this->getBudgetOverviewData($user));
+    }
+    
+    /**
+     * Calculate total balance across all accounts and cards.
+     */
+    private function calculateTotalBalance($user): float
+    {
+        // Ici vous calculeriez le solde réel depuis les comptes bancaires
+        // Pour l'exemple, on utilise une valeur statique
+        return 4790.05;
+    }
+    
+    /**
+     * Get monthly income for the current month.
+     */
+    private function getMonthlyIncome($user): float
+    {
+        return Transaction::where('user_id', $user->id)
+            ->where('type', 'income')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('amount');
+    }
+    
+    /**
+     * Get monthly expenses for the current month.
+     */
+    private function getMonthlyExpenses($user): float
+    {
+        return Transaction::where('user_id', $user->id)
+            ->where('type', 'expense')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('amount');
+    }
+    
+    /**
+     * Get budget overview data for the current month.
+     */
+    private function getBudgetOverviewData($user): array
+    {
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+        
+        // Récupérer les budgets du mois en cours
+        $budgets = Budget::where('user_id', $user->id)
+            ->whereMonth('period_start', $currentMonth)
+            ->whereYear('period_start', $currentYear)
+            ->with('category')
+            ->get();
+        
+        $budgetData = [];
+        
+        foreach ($budgets as $budget) {
+            // Vérifier que la catégorie existe
+            if (!$budget->category) {
+                continue;
             }
-        } else {
-            // Données par jour pour le mois en cours
-            $startDate = now()->startOfMonth();
-            $endDate = now()->endOfMonth();
-            $data = [];
             
-            for ($date = $startDate; $date <= $endDate; $date->addDay()) {
-                $dayIncome = $user->transactions()
-                    ->where('type', 'income')
-                    ->whereDate('transaction_date', $date)
-                    ->sum('amount');
-                    
-                $dayExpenses = $user->transactions()
-                    ->where('type', 'expense')
-                    ->whereDate('transaction_date', $date)
-                    ->sum('amount');
-                
-                $data[] = [
-                    'period' => $date->format('d'),
-                    'income' => $dayIncome,
-                    'expenses' => $dayExpenses,
-                    'balance' => $dayIncome - $dayExpenses
-                ];
-            }
+            // Calculer les dépenses réelles pour cette catégorie
+            $actualSpent = Transaction::where('user_id', $user->id)
+                ->where('category_id', $budget->category_id)
+                ->where('type', 'expense')
+                ->whereMonth('created_at', $currentMonth)
+                ->whereYear('created_at', $currentYear)
+                ->sum('amount');
+            
+            // S'assurer que les valeurs sont numériques
+            $budgetAmount = (float) $budget->amount;
+            $spentAmount = (float) $actualSpent;
+            
+            // Calculer le pourcentage en évitant la division par zéro
+            $percentage = $budgetAmount > 0 ? round(($spentAmount / $budgetAmount) * 100, 2) : 0;
+            
+            $budgetData[] = [
+                'category' => $budget->category->name ?? 'Sans catégorie',
+                'category_icon' => $budget->category->icon ?? '💰',
+                'budgeted' => $budgetAmount,
+                'spent' => $spentAmount,
+                'percentage' => $percentage,
+                'status' => $spentAmount > $budgetAmount ? 'over' : 'under',
+            ];
         }
         
-        return response()->json($data);
+        return $budgetData;
     }
 }

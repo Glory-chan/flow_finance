@@ -1,5 +1,5 @@
 <?php
-// database/migrations/xxxx_xx_xx_create_transactions_table.php
+// database/migrations/2024_01_01_000003_create_transactions_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,23 +12,21 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('bank_account_id')->constrained()->onDelete('cascade');
-            $table->foreignId('category_id')->constrained();
+            $table->foreignId('category_id')->constrained()->onDelete('cascade');
+            $table->foreignId('bank_account_id')->nullable()->constrained()->onDelete('set null');
             $table->string('title');
             $table->text('description')->nullable();
             $table->decimal('amount', 15, 2);
-            $table->enum('type', ['income', 'expense'])->default('expense');
+            $table->enum('type', ['income', 'expense']);
             $table->date('transaction_date');
-            $table->string('merchant')->nullable();
             $table->string('reference')->nullable(); // Référence bancaire
+            $table->json('metadata')->nullable(); // Données supplémentaires
             $table->boolean('is_recurring')->default(false);
-            $table->enum('recurring_frequency', ['daily', 'weekly', 'monthly', 'yearly'])->nullable();
-            $table->json('tags')->nullable(); // Tags personnalisés
-            $table->boolean('is_verified')->default(true);
+            $table->string('recurring_frequency')->nullable(); // daily, weekly, monthly, yearly
             $table->timestamps();
-
+            
             $table->index(['user_id', 'transaction_date']);
-            $table->index(['category_id']);
+            $table->index(['user_id', 'type']);
         });
     }
 

@@ -1,5 +1,5 @@
 <?php
-// database/migrations/xxxx_xx_xx_create_categories_table.php
+// database/migrations/2024_01_01_000001_create_categories_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,9 +14,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('icon')->nullable();
-            $table->string('color', 7)->default('#4CAF50'); // Code couleur hexadécimal
+            $table->string('color', 7)->default('#28a745'); // Couleur hex
             $table->enum('type', ['income', 'expense'])->default('expense');
-            $table->text('description')->nullable();
             $table->boolean('is_default')->default(false);
             $table->timestamps();
         });

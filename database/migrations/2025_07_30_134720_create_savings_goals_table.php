@@ -1,5 +1,5 @@
 <?php
-// database/migrations/xxxx_xx_xx_create_savings_goals_table.php
+// database/migrations/2024_01_01_000004_create_savings_goals_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,17 +14,13 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->text('description')->nullable();
-            $table->decimal('target_amount', 15, 2); // Objectif à atteindre
-            $table->decimal('current_amount', 15, 2)->default(0.00); // Montant actuel
-            $table->date('target_date')->nullable(); // Date objectif
+            $table->decimal('target_amount', 15, 2);
+            $table->decimal('current_amount', 15, 2)->default(0);
+            $table->date('target_date')->nullable();
             $table->string('icon')->nullable();
-            $table->string('color', 7)->default('#4CAF50');
+            $table->string('color', 7)->default('#007bff');
             $table->boolean('is_active')->default(true);
-            $table->boolean('is_completed')->default(false);
-            $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-
-            $table->index(['user_id', 'is_active']);
         });
     }
 

@@ -1,201 +1,415 @@
 <?php
-// app/Http/Controllers/BudgetController.php
 
-namespace App\Http\Controllers;
+namespace App\Models;
 
-use App\Models\Budget;
-use App\Models\Category;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class BudgetController extends Controller
+class Budget extends Model
 {
-    public function __construct()
+    use HasFactory, SoftDeletes;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'user_id',
+        'category_id',
+        'name',
+        'description',
+        'amount',
+        'period_type',
+        'period_start',
+        'period_end',
+        'status',
+        'alert_threshold',
+        'alert_enabled',
+        'rollover_enabled',
+        'notes',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'period_start' => 'date',
+        'period_end' => 'date',
+        'alert_threshold' => 'integer',
+        'alert_enabled' => 'boolean',
+        'rollover_enabled' => 'boolean',
+    ];
+
+    /**
+     * Period types.
+     */
+    const PERIOD_WEEKLY = 'weekly';
+    const PERIOD_MONTHLY = 'monthly';
+    const PERIOD_QUARTERLY = 'quarterly';
+    const PERIOD_YEARLY = 'yearly';
+    const PERIOD_CUSTOM = 'custom';
+
+    /**
+     * Budget statuses.
+     */
+    const STATUS_ACTIVE = 'active';
+    const STATUS_PAUSED = 'paused';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_EXCEEDED = 'exceeded';
+
+    /**
+     * Get the user that owns the budget.
+     */
+    public function user(): BelongsTo
     {
-        $this->middleware('auth');
+        return $this->belongsTo(User::class);
     }
 
-    public function index()
+    /**
+     * Get the category that owns the budget.
+     */
+    public function category(): BelongsTo
     {
-        $budgets = Auth::user()->budgets()
-                      ->with('category')
-                      ->orderBy('created_at', 'desc')
-                      ->get();
+        return $this->belongsTo(Category::class);
+    }
 
-        // Mettre à jour les montants dépensés
-        foreach ($budgets as $budget) {
-            $budget->updateSpentAmount();
+    /**
+     * Get the transactions for this budget.
+     */
+    public function transactions(): BelongsToMany
+    {
+        return $this->belongsToMany(Transaction::class);
+    }
+
+    /**
+     * Scope for active budgets.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Scope for current period budgets.
+     */
+    public function scopeCurrentPeriod($query)
+    {
+        return $query->where('period_start', '<=', now())
+                    ->where('period_end', '>=', now());
+    }
+
+    /**
+     * Scope for specific category.
+     */
+    public function scopeByCategory($query, $categoryId)
+    {
+        return $query->where('category_id', $categoryId);
+    }
+
+    /**
+     * Scope for specific period type.
+     */
+    public function scopeByPeriodType($query, $periodType)
+    {
+        return $query->where('period_type', $periodType);
+    }
+
+    /**
+     * Get spent amount for this budget.
+     */
+    public function getSpentAmountAttribute(): float
+    {
+        return Transaction::where('user_id', $this->user_id)
+            ->where('category_id', $this->category_id)
+            ->where('type', Transaction::TYPE_EXPENSE)
+            ->whereBetween('transaction_date', [$this->period_start, $this->period_end])
+            ->sum('amount');
+    }
+
+    /**
+     * Get remaining amount for this budget.
+     */
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(0, $this->amount - $this->spent_amount);
+    }
+
+    /**
+     * Get spent percentage for this budget.
+     */
+    public function getSpentPercentageAttribute(): float
+    {
+        if ($this->amount <= 0) {
+            return 0;
         }
-
-        $categories = Category::expense()->get();
-
-        return view('budgets.index', compact('budgets', 'categories'));
+        
+        return round(($this->spent_amount / $this->amount) * 100, 2);
     }
 
-    public function create()
+    /**
+     * Get budget status based on spending.
+     */
+    public function getCurrentStatusAttribute(): string
     {
-        $categories = Category::expense()->orderBy('name')->get();
-        
-        return view('budgets.create', compact('categories'));
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'amount' => 'required|numeric|min:0.01',
-            'period' => 'required|in:weekly,monthly,yearly',
-            'alert_threshold' => 'required|integer|min:1|max:100',
-        ]);
-
-        // Calculer les dates selon la période
-        $startDate = now();
-        $endDate = $this->calculateEndDate($startDate, $request->period);
-
-        $budget = Budget::create([
-            'user_id' => Auth::id(),
-            'category_id' => $request->category_id,
-            'name' => $request->name,
-            'amount' => $request->amount,
-            'period' => $request->period,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'alert_threshold' => $request->alert_threshold,
-            'alert_enabled' => $request->boolean('alert_enabled', true),
-            'is_active' => true,
-        ]);
-
-        // Calculer le montant déjà dépensé
-        $budget->updateSpentAmount();
-
-        return redirect()->route('budgets.index')
-                        ->with('success', 'Budget créé avec succès!');
-    }
-
-    public function show(Budget $budget)
-    {
-        $this->authorize('view', $budget);
-        
-        $budget->load('category');
-        $budget->updateSpentAmount();
-
-        // Récupérer les transactions de ce budget
-        $transactions = Auth::user()->transactions()
-                           ->where('category_id', $budget->category_id)
-                           ->where('type', 'expense')
-                           ->whereBetween('transaction_date', [$budget->start_date, $budget->end_date])
-                           ->with('bankAccount')
-                           ->orderBy('transaction_date', 'desc')
-                           ->get();
-
-        return view('budgets.show', compact('budget', 'transactions'));
-    }
-
-    public function edit(Budget $budget)
-    {
-        $this->authorize('update', $budget);
-        
-        $categories = Category::expense()->orderBy('name')->get();
-        
-        return view('budgets.edit', compact('budget', 'categories'));
-    }
-
-    public function update(Request $request, Budget $budget)
-    {
-        $this->authorize('update', $budget);
-        
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'amount' => 'required|numeric|min:0.01',
-            'period' => 'required|in:weekly,monthly,yearly',
-            'alert_threshold' => 'required|integer|min:1|max:100',
-        ]);
-
-        // Recalculer les dates si la période a changé
-        if ($budget->period !== $request->period) {
-            $endDate = $this->calculateEndDate($budget->start_date, $request->period);
-            $budget->end_date = $endDate;
+        if ($this->spent_percentage >= 100) {
+            return self::STATUS_EXCEEDED;
         }
-
-        $budget->update([
-            'name' => $request->name,
-            'category_id' => $request->category_id,
-            'amount' => $request->amount,
-            'period' => $request->period,
-            'alert_threshold' => $request->alert_threshold,
-            'alert_enabled' => $request->boolean('alert_enabled'),
-            'is_active' => $request->boolean('is_active'),
-        ]);
-
-        // Recalculer le montant dépensé
-        $budget->updateSpentAmount();
-
-        return redirect()->route('budgets.index')
-                        ->with('success', 'Budget modifié avec succès!');
-    }
-
-    public function destroy(Budget $budget)
-    {
-        $this->authorize('delete', $budget);
         
-        $budget->delete();
-
-        return redirect()->route('budgets.index')
-                        ->with('success', 'Budget supprimé avec succès!');
+        if ($this->period_end < now()) {
+            return self::STATUS_COMPLETED;
+        }
+        
+        return $this->status;
     }
 
-    public function updateSpent(Budget $budget)
+    /**
+     * Check if budget is exceeded.
+     */
+    public function isExceeded(): bool
     {
-        $this->authorize('update', $budget);
-        
-        $budget->updateSpentAmount();
+        return $this->spent_amount > $this->amount;
+    }
 
-        return response()->json([
-            'spent' => $budget->spent,
-            'progress' => $budget->getProgressPercentage(),
-            'status' => $budget->getStatusColor(),
+    /**
+     * Check if budget alert should be triggered.
+     */
+    public function shouldAlert(): bool
+    {
+        if (!$this->alert_enabled || !$this->alert_threshold) {
+            return false;
+        }
+        
+        return $this->spent_percentage >= $this->alert_threshold;
+    }
+
+    /**
+     * Check if budget is in current period.
+     */
+    public function isCurrentPeriod(): bool
+    {
+        $now = now();
+        return $this->period_start <= $now && $this->period_end >= $now;
+    }
+
+    /**
+     * Get budget progress color.
+     */
+    public function getProgressColorAttribute(): string
+    {
+        if ($this->spent_percentage >= 100) {
+            return '#ef4444'; // Red - exceeded
+        } elseif ($this->spent_percentage >= ($this->alert_threshold ?? 80)) {
+            return '#f59e0b'; // Yellow - warning
+        } else {
+            return '#10b981'; // Green - on track
+        }
+    }
+
+    /**
+     * Get days remaining in budget period.
+     */
+    public function getDaysRemainingAttribute(): int
+    {
+        if ($this->period_end < now()) {
+            return 0;
+        }
+        
+        return now()->diffInDays($this->period_end, false);
+    }
+
+    /**
+     * Get average daily spending for this budget.
+     */
+    public function getAverageDailySpendingAttribute(): float
+    {
+        $daysElapsed = max(1, $this->period_start->diffInDays(now()));
+        return $this->spent_amount / $daysElapsed;
+    }
+
+    /**
+     * Get projected spending at end of period.
+     */
+    public function getProjectedSpendingAttribute(): float
+    {
+        $totalDays = $this->period_start->diffInDays($this->period_end) + 1;
+        return $this->average_daily_spending * $totalDays;
+    }
+
+    /**
+     * Get formatted amount with currency.
+     */
+    public function getFormattedAmountAttribute(): string
+    {
+        $currency = $this->user->getPreferredCurrency();
+        $symbol = match($currency) {
+            'EUR' => '€',
+            'USD' => '$',
+            'GBP' => '£',
+            default => $currency
+        };
+        
+        return $symbol . number_format($this->amount, 2);
+    }
+
+    /**
+     * Get formatted spent amount.
+     */
+    public function getFormattedSpentAmountAttribute(): string
+    {
+        $currency = $this->user->getPreferredCurrency();
+        $symbol = match($currency) {
+            'EUR' => '€',
+            'USD' => '$',
+            'GBP' => '£',
+            default => $currency
+        };
+        
+        return $symbol . number_format($this->spent_amount, 2);
+    }
+
+    /**
+     * Get formatted remaining amount.
+     */
+    public function getFormattedRemainingAmountAttribute(): string
+    {
+        $currency = $this->user->getPreferredCurrency();
+        $symbol = match($currency) {
+            'EUR' => '€',
+            'USD' => '$',
+            'GBP' => '£',
+            default => $currency
+        };
+        
+        return $symbol . number_format($this->remaining_amount, 2);
+    }
+
+    /**
+     * Create next period budget.
+     */
+    public function createNextPeriod(): self
+    {
+        $nextStart = $this->getNextPeriodStart();
+        $nextEnd = $this->getNextPeriodEnd($nextStart);
+        
+        return static::create([
+            'user_id' => $this->user_id,
+            'category_id' => $this->category_id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'amount' => $this->rollover_enabled ? $this->amount + $this->remaining_amount : $this->amount,
+            'period_type' => $this->period_type,
+            'period_start' => $nextStart,
+            'period_end' => $nextEnd,
+            'status' => self::STATUS_ACTIVE,
+            'alert_threshold' => $this->alert_threshold,
+            'alert_enabled' => $this->alert_enabled,
+            'rollover_enabled' => $this->rollover_enabled,
         ]);
     }
 
-    public function getProgress()
+    /**
+     * Get next period start date.
+     */
+    private function getNextPeriodStart(): \Carbon\Carbon
     {
-        $budgets = Auth::user()->budgets()
-                      ->active()
-                      ->current()
-                      ->with('category')
-                      ->get();
-
-        $data = [];
-        foreach ($budgets as $budget) {
-            $budget->updateSpentAmount();
-            $data[] = [
-                'id' => $budget->id,
-                'name' => $budget->name,
-                'category' => $budget->category->name,
-                'amount' => $budget->amount,
-                'spent' => $budget->spent,
-                'progress' => $budget->getProgressPercentage(),
-                'status' => $budget->getStatusColor(),
-                'days_remaining' => $budget->getDaysRemaining(),
-            ];
-        }
-
-        return response()->json($data);
+        return match($this->period_type) {
+            self::PERIOD_WEEKLY => $this->period_end->addDay(),
+            self::PERIOD_MONTHLY => $this->period_start->addMonth(),
+            self::PERIOD_QUARTERLY => $this->period_start->addMonths(3),
+            self::PERIOD_YEARLY => $this->period_start->addYear(),
+            default => $this->period_end->addDay(),
+        };
     }
 
-    private function calculateEndDate(Carbon $startDate, string $period): Carbon
+    /**
+     * Get next period end date.
+     */
+    private function getNextPeriodEnd(\Carbon\Carbon $startDate): \Carbon\Carbon
     {
-        switch ($period) {
-            case 'weekly':
-                return $startDate->copy()->addWeek();
-            case 'yearly':
-                return $startDate->copy()->addYear();
-            case 'monthly':
-            default:
-                return $startDate->copy()->addMonth();
-        }
+        return match($this->period_type) {
+            self::PERIOD_WEEKLY => $startDate->copy()->addWeek()->subDay(),
+            self::PERIOD_MONTHLY => $startDate->copy()->endOfMonth(),
+            self::PERIOD_QUARTERLY => $startDate->copy()->addMonths(3)->subDay(),
+            self::PERIOD_YEARLY => $startDate->copy()->endOfYear(),
+            default => $startDate->copy()->addMonth()->subDay(),
+        };
+    }
+
+    /**
+     * Boot method for model events.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($budget) {
+            if (!$budget->status) {
+                $budget->status = self::STATUS_ACTIVE;
+            }
+            
+            if (!$budget->alert_threshold) {
+                $budget->alert_threshold = 80; // 80% by default
+            }
+            
+            // Set period dates if not provided
+            if (!$budget->period_start) {
+                $budget->period_start = now()->startOfMonth();
+            }
+            
+            if (!$budget->period_end && $budget->period_type === self::PERIOD_MONTHLY) {
+                $budget->period_end = $budget->period_start->copy()->endOfMonth();
+            }
+        });
+
+        static::updated(function ($budget) {
+            // Update status based on spending
+            if ($budget->isExceeded() && $budget->status !== self::STATUS_EXCEEDED) {
+                $budget->update(['status' => self::STATUS_EXCEEDED]);
+            }
+        });
+    }
+
+    /**
+     * Get default budget templates.
+     */
+    public static function getDefaultTemplates(): array
+    {
+        return [
+            [
+                'name' => 'Budget Alimentation',
+                'period_type' => self::PERIOD_MONTHLY,
+                'amount' => 600,
+                'alert_threshold' => 80,
+                'category_name' => 'Alimentation',
+            ],
+            [
+                'name' => 'Budget Transport',
+                'period_type' => self::PERIOD_MONTHLY,
+                'amount' => 300,
+                'alert_threshold' => 85,
+                'category_name' => 'Transport',
+            ],
+            [
+                'name' => 'Budget Divertissement',
+                'period_type' => self::PERIOD_MONTHLY,
+                'amount' => 200,
+                'alert_threshold' => 75,
+                'category_name' => 'Divertissement',
+            ],
+            [
+                'name' => 'Budget Logement',
+                'period_type' => self::PERIOD_MONTHLY,
+                'amount' => 1200,
+                'alert_threshold' => 90,
+                'category_name' => 'Logement',
+            ],
+        ];
     }
 }
