@@ -28,58 +28,6 @@ FlowFinance est une application mobile Flutter qui permet aux utilisateurs de :
 | intl | Formatage FR (monnaie, dates) |
 | equatable | Comparaison de modeles |
 
-## Architecture du projet
-
-lib/
-├── main.dart                        # Point d'entree
-├── app.dart                         # Widget racine
-├── core/
-│   ├── constants/
-│   │   ├── app_colors.dart          # Palette de couleurs
-│   │   ├── app_styles.dart          # Typographie et espacements
-│   │   └── app_strings.dart         # Textes de l'application
-│   ├── router/
-│   │   └── app_router.dart          # Configuration navigation
-│   ├── theme/
-│   │   └── app_theme.dart           # Theme Material 3
-│   └── utils/
-│       ├── formatters.dart          # Formatage monnaie et dates
-│       └── validators.dart          # Validation formulaires
-├── data/
-│   ├── models/
-│   │   ├── transaction_model.dart   # Modele transaction
-│   │   ├── card_model.dart          # Modele carte bancaire
-│   │   └── user_model.dart          # Modele utilisateur
-│   └── mock/
-│       └── mock_data.dart           # Donnees de developpement
-├── features/
-│   ├── auth/
-│   │   └── screens/
-│   │       ├── welcome_screen.dart  # Ecran de bienvenue
-│   │       ├── login_screen.dart    # Connexion
-│   │       ├── register_screen.dart # Inscription
-│   │       └── otp_screen.dart      # Verification email
-│   ├── home/
-│   │   ├── screens/
-│   │   │   └── home_screen.dart     # Tableau de bord
-│   │   └── widgets/
-│   │       ├── period_tab_bar.dart  # Onglets de periode
-│   │       └── transaction_item.dart# Item de transaction
-│   ├── cards/
-│   │   └── screens/
-│   │       └── cards_screen.dart    # Gestion des cartes
-│   ├── analytics/
-│   │   └── screens/
-│   │       └── analytics_screen.dart# Analyses et graphiques
-│   └── settings/
-│       └── screens/
-│           └── settings_screen.dart # Parametres
-└── shared/
-└── widgets/
-├── main_scaffold.dart       # Scaffold + navigation
-├── app_button.dart          # Boutons reutilisables
-└── app_text_field.dart      # Champ de saisie custom
-
 
 ## Fonctionnalites
 
