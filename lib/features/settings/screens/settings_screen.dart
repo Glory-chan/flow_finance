@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../data/mock/mock_data.dart';
+import '../../../services/auth_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -316,7 +317,11 @@ class _LogoutButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: onPressed,
+        onPressed: () async {
+          await AuthService.signOut();
+          if (!context.mounted) return;
+          context.go(AppRoutes.welcome);
+        },
         icon: const Icon(Icons.logout_rounded, size: 18),
         label: const Text(AppStrings.settingsLogout),
         style: OutlinedButton.styleFrom(

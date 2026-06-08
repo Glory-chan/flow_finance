@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
+import '../../../services/auth_service.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 
@@ -33,12 +34,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    final error = await AuthService.registerWithEmail(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
     if (!mounted) return;
     setState(() => _isLoading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+
+    // Inscription reussie : aller vers OTP avec l'email
     context.push(
       '${AppRoutes.otp}?email=${Uri.encodeComponent(_emailController.text.trim())}',
     );
+  }
+
+  Future<void> _handleGoogleRegister() async {
+    setState(() => _isLoading = true);
+
+    final error = await AuthService.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+
+    context.go(AppRoutes.home);
   }
 
   @override
@@ -109,15 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 _OrDivider(),
                 const SizedBox(height: AppSpacing.lg),
-                _GoogleButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Google Sign-In a venir...'),
-                      ),
-                    );
-                  },
-                ),
+                _GoogleButton(onPressed: _handleGoogleRegister),
                 const SizedBox(height: AppSpacing.xl),
                 Center(
                   child: Row(

@@ -10,6 +10,7 @@ import '../../features/cards/screens/cards_screen.dart';
 import '../../features/analytics/screens/analytics_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
+import '../../services/auth_service.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -26,6 +27,22 @@ class AppRoutes {
 
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.welcome,
+  redirect: (context, state) {
+    final isLoggedIn = AuthService.currentUser != null;
+    final uri = state.uri.toString();
+    final isAuthRoute = uri == AppRoutes.welcome ||
+        uri == AppRoutes.login ||
+        uri == AppRoutes.register ||
+        uri.startsWith(AppRoutes.otp);
+
+    // Si non connecte et sur une route protegee -> welcome
+    if (!isLoggedIn && !isAuthRoute) return AppRoutes.welcome;
+
+    // Si connecte et sur une route auth -> home
+    if (isLoggedIn && isAuthRoute) return AppRoutes.home;
+
+    return null;
+  },
   routes: [
     GoRoute(
       path: AppRoutes.welcome,

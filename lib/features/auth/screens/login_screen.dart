@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
+import '../../../services/auth_service.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 
@@ -32,9 +33,46 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    final error = await AuthService.signInWithEmail(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
     if (!mounted) return;
     setState(() => _isLoading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+
+    context.go(AppRoutes.home);
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+
+    final error = await AuthService.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+
     context.go(AppRoutes.home);
   }
 
@@ -122,15 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 _OrDivider(),
                 const SizedBox(height: AppSpacing.lg),
-                _GoogleButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Google Sign-In a venir...'),
-                      ),
-                    );
-                  },
-                ),
+                _GoogleButton(onPressed: _handleGoogleLogin),
                 const SizedBox(height: AppSpacing.xl),
                 Center(
                   child: Row(

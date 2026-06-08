@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "575623197908",
+    "project_id": "flowfinance-9d521",
+    "storage_bucket": "flowfinance-9d521.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:575623197908:android:9f098a748ed20bfc137741",
+        "android_client_info": {
+          "package_name": "com.flowfinance.flow_finance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1mEtfal2cYJpDsMpUPx2HBDsDNdDdd1g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
