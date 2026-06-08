@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Fichiers Firebase (contiennent des cles API)
+lib/firebase_options.dart
