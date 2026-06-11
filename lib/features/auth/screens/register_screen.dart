@@ -18,6 +18,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -25,6 +27,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -38,6 +42,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final error = await AuthService.registerWithEmail(
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
     );
 
     if (!mounted) return;
@@ -53,7 +59,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Inscription reussie : aller vers OTP avec l'email
     context.push(
       '${AppRoutes.otp}?email=${Uri.encodeComponent(_emailController.text.trim())}',
     );
@@ -61,22 +66,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleGoogleRegister() async {
     setState(() => _isLoading = true);
-
     final error = await AuthService.signInWithGoogle();
-
     if (!mounted) return;
     setState(() => _isLoading = false);
-
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: AppColors.expense,
-        ),
+        SnackBar(content: Text(error), backgroundColor: AppColors.expense),
       );
       return;
     }
-
     context.go(AppRoutes.home);
   }
 
@@ -103,6 +101,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 Center(child: _CompactLogo()),
                 const SizedBox(height: AppSpacing.xl),
+
+                // Prenom et Nom cote a cote
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppTextField(
+                        controller: _firstNameController,
+                        label: 'Prenom',
+                        hint: 'Jean',
+                        prefixIcon: Icons.person_outline,
+                        textInputAction: TextInputAction.next,
+                        validator: (value) => AppValidators.validateRequired(
+                          value,
+                          'Le prenom',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: AppTextField(
+                        controller: _lastNameController,
+                        label: 'Nom',
+                        hint: 'Dupont',
+                        prefixIcon: Icons.person_outline,
+                        textInputAction: TextInputAction.next,
+                        validator: (value) => AppValidators.validateRequired(
+                          value,
+                          'Le nom',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
                 AppTextField(
                   controller: _emailController,
                   label: AppStrings.registerEmail,

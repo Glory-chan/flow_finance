@@ -33,4 +33,11 @@ class AppValidators {
     }
     return null;
   }
+
+  static String? validateRequired(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName est obligatoire';
+    }
+    return null;
+  }
 }

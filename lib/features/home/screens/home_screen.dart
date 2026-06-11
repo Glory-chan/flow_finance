@@ -7,6 +7,7 @@ import '../../../data/mock/mock_data.dart';
 import '../../../data/models/transaction_model.dart';
 import '../widgets/period_tab_bar.dart';
 import '../widgets/transaction_item.dart';
+import '../../../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = MockData.currentUser;
+    final userName = AuthService.currentUserFirstName;
     final transactions = _filteredTransactions;
 
     return Scaffold(
@@ -55,8 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: _HomeHeader(
-              userName: user.displayName,
-              balance: user.totalBalance,
+              userName: userName,
+              balance: 4790.05,
             ),
           ),
           SliverToBoxAdapter(

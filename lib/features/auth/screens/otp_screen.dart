@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/router/app_router.dart';
+import '../../../services/auth_service.dart';
 import '../../../shared/widgets/app_button.dart';
 
+/// Ecran de verification d'email apres inscription.
+/// L'utilisateur doit cliquer sur le lien recu par email
+/// puis appuyer sur "J'ai verifie mon email" pour continuer.
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key, required this.email});
 
@@ -18,12 +21,8 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes =
-      List.generate(6, (_) => FocusNode());
-
-  bool _isLoading = false;
+  bool _isChecking = false;
+  bool _isResending = false;
   int _resendSeconds = 60;
   Timer? _resendTimer;
 
@@ -35,12 +34,11 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
-    for (final c in _controllers) c.dispose();
-    for (final f in _focusNodes) f.dispose();
     _resendTimer?.cancel();
     super.dispose();
   }
 
+  /// Demarre le compte a rebours pour le renvoi de l'email.
   void _startResendTimer() {
     _resendSeconds = 60;
     _resendTimer?.cancel();
@@ -59,38 +57,62 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  String get _otpCode =>
-      _controllers.map((c) => c.text).join();
+  /// Verifie si l'email a ete confirme dans Firebase.
+  Future<void> _handleCheckVerification() async {
+    setState(() => _isChecking = true);
 
-  bool get _isComplete => _otpCode.length == 6;
+    final isVerified = await AuthService.checkEmailVerified();
 
-  void _onOtpChanged(String value, int index) {
-    if (value.length == 1 && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
-    setState(() {});
-  }
-
-  Future<void> _handleVerify() async {
-    if (!_isComplete) return;
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
-    setState(() => _isLoading = false);
-    context.go(AppRoutes.home);
+    setState(() => _isChecking = false);
+
+    if (isVerified) {
+      // Email confirme -> aller vers l'accueil
+      context.go(AppRoutes.home);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Email pas encore verifie. Verifiez votre boite mail.',
+          ),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+    }
   }
 
-  void _handleResend() {
+  /// Renvoie l'email de verification.
+  Future<void> _handleResend() async {
     if (_resendSeconds > 0) return;
-    _startResendTimer();
+
+    setState(() => _isResending = true);
+
+    final error = await AuthService.resendVerificationEmail();
+
+    if (!mounted) return;
+    setState(() => _isResending = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code renvoye avec succes')),
+      const SnackBar(
+        content: Text('Email de verification renvoye !'),
+        backgroundColor: AppColors.primary,
+      ),
     );
+
+    _startResendTimer();
   }
 
+  /// Masque partiellement l'email pour l'affichage.
   String _maskEmail(String email) {
     final parts = email.split('@');
     if (parts.length != 2) return email;
@@ -120,9 +142,11 @@ class _OtpScreenState extends State<OtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: AppSpacing.xl),
+
+              // Icone email
               Container(
-                width: 72,
-                height: 72,
+                width: 80,
+                height: 80,
                 decoration: const BoxDecoration(
                   color: AppColors.primaryLight,
                   shape: BoxShape.circle,
@@ -130,70 +154,100 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: const Icon(
                   Icons.mark_email_read_outlined,
                   color: AppColors.primary,
-                  size: 36,
+                  size: 40,
                 ),
               ),
+
               const SizedBox(height: AppSpacing.lg),
+
+              // Titre
               Text(
-                AppStrings.otpTitle,
+                'Verifiez votre email',
                 style: AppTextStyles.headlineLarge,
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: AppSpacing.sm),
+
+              // Description
               Text(
-                '${AppStrings.otpSubtitle}\n${_maskEmail(widget.email)}',
+                'Un email de verification a ete envoye a',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xxl),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(
-                  6,
-                  (index) => _OtpBox(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    onChanged: (value) => _onOtpChanged(value, index),
-                  ),
+
+              const SizedBox(height: AppSpacing.xs),
+
+              // Email masque
+              Text(
+                _maskEmail(widget.email),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
                 ),
+                textAlign: TextAlign.center,
               ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              Text(
+                'Cliquez sur le lien dans l\'email\npuis revenez ici pour continuer.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
               const SizedBox(height: AppSpacing.xxl),
+
+              // Etapes visuelles
+              _VerificationSteps(),
+
+              const SizedBox(height: AppSpacing.xxl),
+
+              // Bouton principal
               PrimaryButton(
-                label: AppStrings.otpVerifyButton,
-                onPressed: _isComplete ? _handleVerify : null,
-                isLoading: _isLoading,
-                isEnabled: _isComplete,
+                label: 'J\'ai verifie mon email',
+                onPressed: _handleCheckVerification,
+                isLoading: _isChecking,
               ),
+
               const SizedBox(height: AppSpacing.lg),
+
+              // Lien de renvoi avec compte a rebours
               GestureDetector(
                 onTap: _resendSeconds == 0 ? _handleResend : null,
-                child: RichText(
-                  text: TextSpan(
-                    style: AppTextStyles.bodySmall,
-                    children: [
-                      TextSpan(
-                        text: _resendSeconds > 0
-                            ? '${AppStrings.otpResendIn} '
-                            : '',
-                      ),
-                      TextSpan(
-                        text: _resendSeconds > 0
-                            ? '$_resendSeconds${AppStrings.otpSeconds}'
-                            : AppStrings.otpResend,
-                        style: TextStyle(
-                          color: _resendSeconds == 0
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          fontWeight: _resendSeconds == 0
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                child: _isResending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : RichText(
+                        text: TextSpan(
+                          style: AppTextStyles.bodySmall,
+                          children: [
+                            TextSpan(
+                              text: _resendSeconds > 0
+                                  ? 'Renvoyer dans $_resendSeconds s'
+                                  : 'Renvoyer l\'email',
+                              style: TextStyle(
+                                color: _resendSeconds == 0
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: _resendSeconds == 0
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),
@@ -203,53 +257,82 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 }
 
-class _OtpBox extends StatelessWidget {
-  const _OtpBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
+/// Widget affichant les 3 etapes de verification visuellement.
+class _VerificationSteps extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundSecondary,
+        borderRadius: AppRadius.lgRadius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _StepItem(
+            number: '1',
+            text: 'Ouvrez votre boite mail',
+            icon: Icons.inbox_outlined,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _StepItem(
+            number: '2',
+            text: 'Cliquez sur le lien de verification',
+            icon: Icons.link_rounded,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _StepItem(
+            number: '3',
+            text: 'Revenez ici et appuyez sur le bouton',
+            icon: Icons.check_circle_outline_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Une etape individuelle dans le widget des etapes.
+class _StepItem extends StatelessWidget {
+  const _StepItem({
+    required this.number,
+    required this.text,
+    required this.icon,
   });
 
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
+  final String number;
+  final String text;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      height: 56,
-      child: TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        onChanged: onChanged,
-        style: AppTextStyles.headlineMedium,
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: AppColors.backgroundSecondary,
-          contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(
-            borderRadius: AppRadius.mdRadius,
-            borderSide: const BorderSide(color: AppColors.border),
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: const BoxDecoration(
+            color: AppColors.primaryLight,
+            shape: BoxShape.circle,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: AppRadius.mdRadius,
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: AppRadius.mdRadius,
-            borderSide: const BorderSide(
-              color: AppColors.primary,
-              width: 2,
+          child: Center(
+            child: Text(
+              number,
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
-      ),
+        const SizedBox(width: AppSpacing.md),
+        Icon(icon, color: AppColors.primary, size: 20),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(text, style: AppTextStyles.bodySmall),
+        ),
+      ],
     );
   }
 }

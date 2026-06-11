@@ -4,16 +4,18 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/router/app_router.dart';
-import '../../../data/mock/mock_data.dart';
 import '../../../services/auth_service.dart';
+import 'profile_screen.dart';
+import 'security_screen.dart';
+import 'notifications_screen.dart';
+import 'general_screen.dart';
+import 'export_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = MockData.currentUser;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -29,8 +31,8 @@ class SettingsScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.pageHorizontal),
                 child: _UserProfileCard(
-                  fullName: user.fullName,
-                  email: user.email,
+                  fullName: AuthService.currentUserFullName,
+                  email: AuthService.currentUserEmail,
                 ),
               ),
               _SettingsSection(
@@ -39,23 +41,29 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsItem(
                     icon: Icons.person_outline_rounded,
                     label: AppStrings.settingsProfile,
-                    onTap: () {},
+                    onTap: () => context.push('/profile'),
                   ),
                   _SettingsItem(
                     icon: Icons.lock_outline_rounded,
                     label: AppStrings.settingsSecurity,
-                    onTap: () {},
+                    onTap: () => context.push('/security'),
                   ),
                   _SettingsItem(
                     icon: Icons.notifications_outlined,
                     label: AppStrings.settingsNotifications,
-                    onTap: () {},
+                    onTap: () => context.push('/notifications'),
                     trailing: _NotificationBadge(),
                   ),
                   _SettingsItem(
                     icon: Icons.account_balance_outlined,
                     label: AppStrings.settingsBankAccounts,
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Comptes bancaires a venir...'),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -65,12 +73,18 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsItem(
                     icon: Icons.tune_rounded,
                     label: AppStrings.settingsGeneral,
-                    onTap: () {},
+                    onTap: () => context.push('/general'),
                   ),
                   _SettingsItem(
                     icon: Icons.credit_card_outlined,
                     label: AppStrings.settingsBilling,
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Facturation a venir...'),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -80,7 +94,7 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsItem(
                     icon: Icons.download_outlined,
                     label: AppStrings.settingsExport,
-                    onTap: () {},
+                    onTap: () => context.push('/export'),
                   ),
                 ],
               ),
@@ -89,9 +103,7 @@ class SettingsScreen extends StatelessWidget {
                   horizontal: AppSpacing.pageHorizontal,
                   vertical: AppSpacing.sm,
                 ),
-                child: _LogoutButton(
-                  onPressed: () => context.go(AppRoutes.welcome),
-                ),
+                child: _LogoutButton(),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -136,7 +148,11 @@ class _UserProfileCard extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                fullName.split(' ').map((w) => w[0]).take(2).join(),
+                fullName
+                    .split(' ')
+                    .map((w) => w.isNotEmpty ? w[0] : '')
+                    .take(2)
+                    .join(),
                 style: AppTextStyles.headlineMedium.copyWith(
                   color: Colors.white,
                 ),
@@ -166,7 +182,7 @@ class _UserProfileCard extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: () => context.push('/profile'),
             icon: const Icon(
               Icons.edit_outlined,
               color: Colors.white,
@@ -308,10 +324,6 @@ class _NotificationBadge extends StatelessWidget {
 }
 
 class _LogoutButton extends StatelessWidget {
-  const _LogoutButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -366,7 +378,7 @@ class _DangerZone extends StatelessWidget {
             ),
           ),
           child: ListTile(
-            onTap: () {},
+            onTap: () => _showDeleteConfirmation(context),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
@@ -399,5 +411,73 @@ class _DangerZone extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.lgRadius,
+        ),
+        title: Text(
+          'Supprimer le compte',
+          style: AppTextStyles.headlineSmall,
+        ),
+        content: Text(
+          'Cette action est irreversible. Toutes vos donnees seront supprimees definitivement.',
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Annuler',
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _handleDeleteAccount(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.expense,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppRadius.mdRadius,
+              ),
+            ),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    final error = await AuthService.deleteAccount();
+    if (!context.mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AppColors.expense,
+        ),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Compte supprime avec succes.'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+    context.go(AppRoutes.welcome);
   }
 }

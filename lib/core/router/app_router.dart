@@ -9,6 +9,11 @@ import '../../features/home/screens/home_screen.dart';
 import '../../features/cards/screens/cards_screen.dart';
 import '../../features/analytics/screens/analytics_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/settings/screens/profile_screen.dart';
+import '../../features/settings/screens/security_screen.dart';
+import '../../features/settings/screens/notifications_screen.dart';
+import '../../features/settings/screens/general_screen.dart';
+import '../../features/settings/screens/export_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../../services/auth_service.dart';
 
@@ -23,6 +28,11 @@ class AppRoutes {
   static const String cards = '/cards';
   static const String analytics = '/analytics';
   static const String settings = '/settings';
+  static const String profile = '/profile';
+  static const String security = '/security';
+  static const String notifications = '/notifications';
+  static const String general = '/general';
+  static const String export = '/export';
 }
 
 final GoRouter appRouter = GoRouter(
@@ -35,15 +45,13 @@ final GoRouter appRouter = GoRouter(
         uri == AppRoutes.register ||
         uri.startsWith(AppRoutes.otp);
 
-    // Si non connecte et sur une route protegee -> welcome
     if (!isLoggedIn && !isAuthRoute) return AppRoutes.welcome;
-
-    // Si connecte et sur une route auth -> home
     if (isLoggedIn && isAuthRoute) return AppRoutes.home;
 
     return null;
   },
   routes: [
+    // Routes d'authentification
     GoRoute(
       path: AppRoutes.welcome,
       builder: (context, state) => const WelcomeScreen(),
@@ -63,6 +71,30 @@ final GoRouter appRouter = GoRouter(
         return OtpScreen(email: email);
       },
     ),
+
+    // Routes settings sans BottomNav
+    GoRoute(
+      path: AppRoutes.profile,
+      builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.security,
+      builder: (context, state) => const SecurityScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.notifications,
+      builder: (context, state) => const NotificationsScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.general,
+      builder: (context, state) => const GeneralScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.export,
+      builder: (context, state) => const ExportScreen(),
+    ),
+
+    // Shell route avec BottomNav
     ShellRoute(
       builder: (context, state, child) => MainScaffold(child: child),
       routes: [
