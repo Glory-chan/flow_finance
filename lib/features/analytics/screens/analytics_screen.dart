@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../data/mock/mock_data.dart';
 import '../../../data/models/transaction_model.dart';
+import '../../../providers/transactions_provider.dart';
+import '../../../providers/cards_provider.dart';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
 
-  double get _totalExpenses => MockData.transactions
-      .where((t) => t.isExpense)
-      .fold(0.0, (sum, t) => sum + t.amount.abs());
-
-  double get _totalIncome => MockData.transactions
-      .where((t) => t.isIncome)
-      .fold(0.0, (sum, t) => sum + t.amount);
-
-  double get _savingsRate {
-    if (_totalIncome == 0) return 0;
-    return (_totalIncome - _totalExpenses) / _totalIncome;
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final transactionsAsync = ref.watch(transactionsProvider);
+    final totalIncome = ref.watch(totalIncomeProvider);
+    final totalExpenses = ref.watch(totalExpensesProvider);
+    final totalBalance = ref.watch(totalBalanceProvider);
+
+    final savingsRate = totalIncome > 0
+        ? (totalIncome - totalExpenses) / totalIncome
+        : 0.0;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -33,40 +31,74 @@ class AnalyticsScreen extends StatelessWidget {
           style: AppTextStyles.headlineMedium,
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pageHorizontal,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppSpacing.md),
-              _SummaryCards(
-                totalIncome: _totalIncome,
-                totalExpenses: _totalExpenses,
-                savingsRate: _savingsRate,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Evolution du solde',
-                style: AppTextStyles.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _BalanceLineChart(),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Depenses par categorie',
-                style: AppTextStyles.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _ExpensesBarChart(),
-              const SizedBox(height: AppSpacing.xl),
-              _CategoryLegend(),
-              const SizedBox(height: AppSpacing.xl),
-            ],
+      body: transactionsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (error, _) => Center(
+          child: Text(
+            'Erreur de chargement',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.expense,
+            ),
           ),
         ),
+        data: (transactions) {
+          // Calcul des depenses par categorie
+          final expensesByCategory = <TransactionCategory, double>{};
+          for (final t in transactions.where((t) => t.isExpense)) {
+            expensesByCategory[t.category] =
+                (expensesByCategory[t.category] ?? 0) + t.amount.abs();
+          }
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.pageHorizontal,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Cartes de resume
+                  _SummaryCards(
+                    totalIncome: totalIncome,
+                    totalExpenses: totalExpenses,
+                    savingsRate: savingsRate,
+                  ),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Solde total
+                  _BalanceCard(balance: totalBalance),
+
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Graphique depenses par categorie
+                  if (expensesByCategory.isNotEmpty) ...[
+                    Text(
+                      'Depenses par categorie',
+                      style: AppTextStyles.headlineSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _ExpensesBarChart(
+                      expensesByCategory: expensesByCategory,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _CategoryLegend(
+                      expensesByCategory: expensesByCategory,
+                    ),
+                  ] else ...[
+                    _EmptyAnalytics(),
+                  ],
+
+                  const SizedBox(height: AppSpacing.xl),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -166,98 +198,52 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _BalanceLineChart extends StatelessWidget {
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.balance});
+
+  final double balance;
+
   @override
   Widget build(BuildContext context) {
-    final data = MockData.balanceHistory;
-    final labels = MockData.monthLabels;
-
     return Container(
-      height: 200,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
+        gradient: AppColors.primaryGradient,
         borderRadius: AppRadius.lgRadius,
-        border: Border.all(color: AppColors.border),
       ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            getDrawingHorizontalLine: (value) => const FlLine(
-              color: AppColors.border,
-              strokeWidth: 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Solde total',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final index = value.toInt();
-                  if (index < 0 || index >= labels.length) {
-                    return const SizedBox.shrink();
-                  }
-                  return Text(labels[index], style: AppTextStyles.labelSmall);
-                },
-              ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            AppFormatters.formatCurrency(balance),
+            style: AppTextStyles.balanceDisplay.copyWith(
+              color: Colors.white,
             ),
           ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: data.asMap().entries.map((entry) {
-                return FlSpot(entry.key.toDouble(), entry.value);
-              }).toList(),
-              isCurved: true,
-              color: AppColors.primary,
-              barWidth: 2.5,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, bar, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: AppColors.primary,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.primary.withOpacity(0.2),
-                    AppColors.primary.withOpacity(0.0),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
 class _ExpensesBarChart extends StatelessWidget {
+  const _ExpensesBarChart({required this.expensesByCategory});
+
+  final Map<TransactionCategory, double> expensesByCategory;
+
   @override
   Widget build(BuildContext context) {
-    final expenses = MockData.expensesByCategory;
-    final entries = expenses.entries.toList();
-    final maxValue = expenses.values.reduce((a, b) => a > b ? a : b);
+    final entries = expensesByCategory.entries.toList();
+    final maxValue = expensesByCategory.values
+        .reduce((a, b) => a > b ? a : b);
 
     return Container(
       height: 200,
@@ -327,13 +313,17 @@ class _ExpensesBarChart extends StatelessWidget {
 }
 
 class _CategoryLegend extends StatelessWidget {
+  const _CategoryLegend({required this.expensesByCategory});
+
+  final Map<TransactionCategory, double> expensesByCategory;
+
   @override
   Widget build(BuildContext context) {
-    final expenses = MockData.expensesByCategory;
-    final total = expenses.values.fold(0.0, (sum, v) => sum + v);
+    final total = expensesByCategory.values
+        .fold(0.0, (sum, v) => sum + v);
 
     return Column(
-      children: expenses.entries.map((entry) {
+      children: expensesByCategory.entries.map((entry) {
         final percentage = entry.value / total;
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -369,6 +359,39 @@ class _CategoryLegend extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _EmptyAnalytics extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          children: [
+            Icon(
+              Icons.bar_chart_outlined,
+              size: 64,
+              color: AppColors.textHint,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Pas encore de donnees',
+              style: AppTextStyles.headlineSmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Ajoutez des transactions pour voir\nvos analyses financieres',
+              style: AppTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

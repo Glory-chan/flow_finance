@@ -105,4 +105,88 @@ class AppTheme {
       ),
     );
   }
+
+    static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        brightness: Brightness.dark,
+        primary: AppColors.primary,
+        onPrimary: AppColors.textOnPrimary,
+        background: const Color(0xFF121212),
+        surface: const Color(0xFF1E1E1E),
+        error: AppColors.expense,
+      ),
+      fontFamily: 'Poppins',
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: const RoundedRectangleBorder(
+            borderRadius: AppRadius.mdRadius,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF2C2C2C),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: Color(0xFF3C3C3C)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: Color(0xFF3C3C3C)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide:
+              const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        hintStyle: const TextStyle(color: Color(0xFF666666)),
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1E1E1E),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.lgRadius,
+          side: const BorderSide(color: Color(0xFF2C2C2C)),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF2C2C2C),
+        thickness: 1,
+        space: 1,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Color(0xFF666666),
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
+      ),
+    );
+  }
 }

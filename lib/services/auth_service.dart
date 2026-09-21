@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../data/repositories/firestore_repository.dart';
 
 class AuthService {
   AuthService._();
@@ -28,7 +29,7 @@ class AuthService {
   }
 
   /// Inscription avec email, mot de passe, prenom et nom.
-  static Future<String?> registerWithEmail({
+      static Future<String?> registerWithEmail({
     required String email,
     required String password,
     required String firstName,
@@ -40,8 +41,15 @@ class AuthService {
         password: password,
       );
 
-      // Sauvegarder le nom complet dans Firebase
+      // Sauvegarder le nom complet dans Firebase Auth
       await credential.user?.updateDisplayName('$firstName $lastName');
+
+      // Creer le profil dans Firestore
+      await FirestoreRepository.createUserProfile(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+      );
 
       // Envoyer l'email de verification
       await credential.user?.sendEmailVerification();
@@ -75,7 +83,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _handleAuthError(e.code);
     } catch (e) {
-      return 'Une erreur est survenue. Veuillez reessayer.';
+      return 'Erreur : ${e.toString()}';
     }
   }
 
@@ -196,6 +204,14 @@ class AuthService {
         return 'Erreur reseau. Verifiez votre connexion.';
       case 'requires-recent-login':
         return 'Veuillez vous reconnecter avant de continuer.';
+      case 'invalid-credential':
+        return 'Email ou mot de passe incorrect.';
+      case 'INVALID_LOGIN_CREDENTIALS':
+        return 'Email ou mot de passe incorrect.';
+      case 'user-disabled':
+        return 'Ce compte a ete desactive.';
+      case 'channel-error':
+        return 'Verifiez votre connexion internet.';
       default:
         return 'Une erreur est survenue. Veuillez reessayer.';
     }

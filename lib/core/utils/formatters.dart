@@ -26,6 +26,12 @@ class AppFormatters {
     return DateFormat('d MMM', 'fr_FR').format(date);
   }
 
+    /// Formate une date en format complet.
+  /// Exemple : DateTime -> "15 janvier 2024"
+  static String formatDateLong(DateTime date) {
+    return DateFormat('d MMMM yyyy', 'fr_FR').format(date);
+  }
+
   static String formatTransactionDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

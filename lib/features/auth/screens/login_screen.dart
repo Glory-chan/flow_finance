@@ -76,6 +76,102 @@ class _LoginScreenState extends State<LoginScreen> {
     context.go(AppRoutes.home);
   }
 
+  /// Affiche la dialog de reinitialisation du mot de passe.
+  void _showForgotPasswordDialog(BuildContext context) {
+    final emailController = TextEditingController(
+      text: _emailController.text,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.lgRadius,
+        ),
+        title: Text(
+          'Mot de passe oublie',
+          style: AppTextStyles.headlineSmall,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Entrez votre email pour recevoir un lien de reinitialisation.',
+              style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Adresse email',
+                hintText: 'exemple@email.com',
+                filled: true,
+                fillColor: AppColors.backgroundSecondary,
+                border: OutlineInputBorder(
+                  borderRadius: AppRadius.mdRadius,
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: AppRadius.mdRadius,
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: AppRadius.mdRadius,
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'Annuler',
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) return;
+              Navigator.of(ctx).pop();
+              final error =
+                  await AuthService.sendPasswordResetEmail(email);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    error ?? 'Email de reinitialisation envoye !',
+                  ),
+                  backgroundColor: error != null
+                      ? AppColors.expense
+                      : AppColors.primary,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppRadius.mdRadius,
+              ),
+            ),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,7 +236,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () =>
+                          _showForgotPasswordDialog(context),
                       child: Text(
                         AppStrings.loginForgotPassword,
                         style: AppTextStyles.bodySmall.copyWith(
@@ -171,11 +268,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: AppTextStyles.bodySmall,
                       ),
                       TextButton(
-                        onPressed: () => context.push(AppRoutes.register),
+                        onPressed: () =>
+                            context.push(AppRoutes.register),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.only(left: 4),
                           minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          tapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
                           AppStrings.loginSignUp,

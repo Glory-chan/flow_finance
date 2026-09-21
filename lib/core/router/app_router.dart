@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/welcome_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
@@ -16,10 +17,12 @@ import '../../features/settings/screens/general_screen.dart';
 import '../../features/settings/screens/export_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../../services/auth_service.dart';
+import '../../features/settings/screens/bank_accounts_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
 
+  static const String splash = '/splash';
   static const String welcome = '/';
   static const String login = '/login';
   static const String register = '/register';
@@ -33,13 +36,18 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String general = '/general';
   static const String export = '/export';
+  static const String bankAccounts = '/bank-accounts';
 }
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.welcome,
+  initialLocation: AppRoutes.splash,
   redirect: (context, state) {
     final isLoggedIn = AuthService.currentUser != null;
     final uri = state.uri.toString();
+
+    // Ne pas rediriger depuis le splash
+    if (uri == AppRoutes.splash) return null;
+
     final isAuthRoute = uri == AppRoutes.welcome ||
         uri == AppRoutes.login ||
         uri == AppRoutes.register ||
@@ -51,6 +59,12 @@ final GoRouter appRouter = GoRouter(
     return null;
   },
   routes: [
+    // Splash
+    GoRoute(
+      path: AppRoutes.splash,
+      builder: (context, state) => const SplashScreen(),
+    ),
+
     // Routes d'authentification
     GoRoute(
       path: AppRoutes.welcome,
@@ -113,6 +127,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: AppRoutes.settings,
           builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.bankAccounts,
+          builder: (context, state) => const BankAccountsScreen(),
         ),
       ],
     ),

@@ -57,13 +57,7 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsItem(
                     icon: Icons.account_balance_outlined,
                     label: AppStrings.settingsBankAccounts,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Comptes bancaires a venir...'),
-                        ),
-                      );
-                    },
+                    onTap: () => context.push(AppRoutes.bankAccounts),
                   ),
                 ],
               ),
@@ -74,17 +68,6 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.tune_rounded,
                     label: AppStrings.settingsGeneral,
                     onTap: () => context.push('/general'),
-                  ),
-                  _SettingsItem(
-                    icon: Icons.credit_card_outlined,
-                    label: AppStrings.settingsBilling,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Facturation a venir...'),
-                        ),
-                      );
-                    },
                   ),
                 ],
               ),

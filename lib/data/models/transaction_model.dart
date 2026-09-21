@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
 enum TransactionCategory {
@@ -59,4 +60,32 @@ class TransactionModel extends Equatable {
 
   @override
   List<Object?> get props => [id, title, subtitle, amount, date, category];
+
+  /// Convertit pour envoi vers Firestore.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'subtitle': subtitle,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
+      'category': category.name,
+    };
+  }
+
+  /// Cree depuis un document Firestore.
+  factory TransactionModel.fromFirestore(Map<String, dynamic> data) {
+    return TransactionModel(
+      id: data['id'] as String? ?? '',
+      title: data['title'] as String? ?? '',
+      subtitle: data['subtitle'] as String? ?? '',
+      amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+      date: data['date'] is Timestamp
+          ? (data['date'] as Timestamp).toDate()
+          : DateTime.now(),
+      category: TransactionCategory.values.firstWhere(
+        (e) => e.name == data['category'],
+        orElse: () => TransactionCategory.other,
+      ),
+    );
+  }
 }
