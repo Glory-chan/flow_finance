@@ -40,6 +40,19 @@ class MainScaffold extends StatelessWidget {
     final currentIndex = _getCurrentIndex(context);
     return Scaffold(
       body: child,
+      // Bouton flottant chatbot
+      floatingActionButton: currentIndex != 0
+          ? FloatingActionButton(
+              onPressed: () => context.push(AppRoutes.chatbot),
+              backgroundColor: AppColors.primary,
+              mini: true,
+              child: const Icon(
+                Icons.smart_toy_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
+            )
+          : null,
       bottomNavigationBar: _BottomNav(
         currentIndex: currentIndex,
         onTap: (index) => _onTabTapped(context, index),

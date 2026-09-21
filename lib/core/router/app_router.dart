@@ -18,6 +18,7 @@ import '../../features/settings/screens/export_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../../services/auth_service.dart';
 import '../../features/settings/screens/bank_accounts_screen.dart';
+import '../../features/chatbot/screens/chatbot_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -37,6 +38,7 @@ class AppRoutes {
   static const String general = '/general';
   static const String export = '/export';
   static const String bankAccounts = '/bank-accounts';
+  static const String chatbot = '/chatbot';
 }
 
 final GoRouter appRouter = GoRouter(
@@ -131,6 +133,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: AppRoutes.bankAccounts,
           builder: (context, state) => const BankAccountsScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.chatbot,
+          builder: (context, state) => const ChatbotScreen(),
         ),
       ],
     ),

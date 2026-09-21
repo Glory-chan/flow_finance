@@ -46,3 +46,6 @@ app.*.map.json
 
 # Fichiers Firebase (contiennent des cles API)
 lib/firebase_options.dart
+
+# Fichier contenant les vraies cles API (Gemini, etc.)
+lib/core/config/api_keys.dart

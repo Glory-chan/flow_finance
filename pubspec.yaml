@@ -28,6 +28,9 @@ dependencies:
 
   shared_preferences: ^2.3.2
 
+  # Appels HTTP (API Gemini pour le chatbot)
+  http: ^1.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

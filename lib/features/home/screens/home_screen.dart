@@ -11,6 +11,8 @@ import '../../../providers/cards_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../widgets/period_tab_bar.dart';
 import '../widgets/transaction_item.dart';
+import '../../../core/router/app_router.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -258,10 +260,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
 
       // Bouton ajout de transaction
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTransactionSheet(context),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+          floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          // Bouton chatbot
+          FloatingActionButton.small(
+            heroTag: 'chatbot',
+            onPressed: () => context.push(AppRoutes.chatbot),
+            backgroundColor: Colors.white,
+            child: const Icon(
+              Icons.smart_toy_outlined,
+              color: AppColors.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // Bouton ajout transaction
+          FloatingActionButton(
+            heroTag: 'add',
+            onPressed: () => _showAddTransactionSheet(context),
+            backgroundColor: AppColors.primary,
+            child: const Icon(Icons.add_rounded, color: Colors.white),
+          ),
+        ],
       ),
     );
   }
